@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>驭鬼者总部 · 灵异资料检索系统</title>
+<style>
+/* ============================================================
+   驭鬼者总部 · 灵异资料检索系统
+   视觉方向：CRT 加密情报终端 + 档案卷宗质感
+   —— 深黑基底 / 暗红警示 / 暗金(黄金=最高安全等级) / 等宽终端字
+   ============================================================ */
+
+/* ===== 1. 全局变量与基础 ===== */
+:root{
+  --bg:      #0a0a0a;   /* 主背景：近黑 */
+  --bg-1:    #0e0e0e;   /* 面板底 */
+  --bg-2:    #121212;   /* 卡片底 */
+  --bg-3:    #161616;   /* 悬停底 */
+  --line:    #212121;   /* 普通分隔线 */
+  --line-2:  #2b2b2b;   /* 强调分隔线 */
+  --txt:     #b3b3b3;   /* 正文灰 */
+  --txt-dim: #686868;   /* 次要文字 */
+  --txt-bright:#dedede; /* 亮字 */
+  --red:     #cc0000;   /* 暗红：警示 / A级 */
+  --red-deep:#8b0000;   /* 深红 */
+  --blood:   #ff1f1f;   /* 血红：S级 */
+  --gold:    #b8860b;   /* 暗金：黄金（最高安全等级 / 悬赏） */
+  --gold-br: #d4a017;   /* 亮金 */
+  /* 厉鬼等级配色：C=灰 B=暗黄 A=暗红 S=血红闪烁 */
+  --lvl-c: #8f8f8f;
+  --lvl-b: #b8860b;
+  --lvl-a: #cc0000;
+  --lvl-s: #ff1f1f;
+  --mono: "Consolas","Courier New","SimSun","NSimSun",monospace; /* 终端等宽 */
+  --serif: "SimHei","黑体","STZhongsong","SimSun",serif;         /* 档案标题黑体/宋体 */
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html{ } /* 最小宽度约束仅对 ≥1024px 桌面端生效，移动端走底部媒体查询的单列布局 */
+@media (min-width:1024px){ html{ min-width:1100px; } }
+body{
+  background-color:var(--bg);
+  background-image:radial-gradient(1400px 900px at 50% -8%, #101010 0%, #0a0a0a 62%);
+  color:var(--txt);
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.7;
+  min-height:100vh;
+  overflow-x:auto;
+}
+
+/* ===== 2. 纹理层：扫描线 / 噪点 / 扫描光带 ===== */
+/* CRT 扫描线：细黑横线等距覆盖全屏 */
+body::before{
+  content:""; position:fixed; inset:0; z-index:9950; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.20) 0px, rgba(0,0,0,.20) 1px, transparent 1px, transparent 3px);
+}
+/* 胶片噪点：SVG feTurbulence 内联生成，不依赖外部资源 */
+body::after{
+  content:""; position:fixed; inset:0; z-index:9949; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* 缓慢下移的 CRT 光带（极淡，营造老显示器扫描感） */
+.crt-sweep{
+  position:fixed; left:0; right:0; top:-40%; height:34vh; z-index:9951; pointer-events:none;
+  background:linear-gradient(to bottom, transparent, rgba(255,255,255,.016) 50%, transparent);
+  animation:sweep 11s linear infinite;
+}
+@keyframes sweep{ from{ top:-40%; } to{ top:130%; } }
+
+/* ===== 3. 保密水印：总部机密 · 禁止外传（倾斜排列，隐约可见） ===== */
+.watermark{
+  position:fixed; inset:0; z-index:9948; pointer-events:none;
+  display:grid; grid-template-columns:repeat(2,1fr); place-items:center; gap:140px 200px;
+}
+.watermark span{
+  font-family:var(--serif); font-weight:900; font-size:64px; letter-spacing:.3em;
+  color:#ffffff; opacity:.028; white-space:nowrap; transform:rotate(-26deg);
+}
+
+/* ===== 4. 通用组件：按钮 / 输入 / 下拉 / 标签 ===== */
+.tinput{
+  background:transparent; border:1px solid var(--line-2); border-bottom:1px solid var(--red);
+  color:var(--gold-br); font-family:var(--mono); font-size:14px; padding:9px 12px; width:100%; outline:none;
+  transition:border-color .2s;
+}
+.tinput:focus{ border-color:var(--red); }
+.tinput::placeholder{ color:#4a4a4a; }
+.tselect{
+  background:#0d0d0d; color:var(--txt); border:1px solid var(--line-2); font-family:var(--mono);
+  font-size:12px; padding:8px 10px; outline:none; cursor:pointer;
+}
+.tselect:hover{ border-color:#3a3a3a; }
+.tbtn{
+  background:transparent; border:1px solid var(--red); color:var(--red); font-family:var(--mono);
+  font-size:13px; letter-spacing:3px; padding:9px 26px; cursor:pointer; transition:all .2s;
+}
+.tbtn:hover{ background:var(--red); color:#f5f5f5; }
+.tbtn:disabled{ opacity:.35; cursor:wait; }
+
+/* 等级标签：C灰 / B暗黄 / A暗红 / S血红闪烁 */
+.lv-tag{
+  display:inline-block; border:1px solid currentColor; padding:0 8px; font-weight:700;
+  font-size:12px; letter-spacing:1px; line-height:1.6; white-space:nowrap;
+}
+.lv-c{ color:var(--lvl-c); }
+.lv-b{ color:var(--lvl-b); }
+.lv-a{ color:var(--lvl-a); }
+.lv-s{ color:var(--lvl-s); text-shadow:0 0 8px rgba(255,31,31,.4); animation:sblink 1.1s steps(2) infinite; }
+@keyframes sblink{ 50%{ opacity:.22; } }
+
+/* 面板容器：直角、细线、无圆角无投影（反现代互联网风格） */
+.panel{ background:var(--bg-1); border:1px solid var(--line-2); }
+.panel-head{
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-bottom:1px solid var(--line); font-size:12px; color:var(--txt-dim); letter-spacing:2px;
+}
+.panel-head::before{ content:"▍"; color:var(--red); }
+.panel-body{ padding:14px; }
+
+/* 视图切换 */
+.view{ display:none; }
+.view.active{ display:block; animation:fadein .4s ease both; }
+@keyframes fadein{ from{ opacity:0; } to{ opacity:1; } }
+.hidden{ display:none !important; }
+
+/* ===== 5. 登录界面（加密验证层） ===== */
+#login-screen{
+  position:fixed; inset:0; z-index:10000; background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px;
+  transition:opacity .55s ease, visibility .55s;
+}
+#login-screen.done{ opacity:0; visibility:hidden; pointer-events:none; }
+/* 登录框：档案卷宗式的直角外框 + 四角红色定位角标 */
+.login-frame{
+  position:relative; width:680px; max-width:92vw;
+  background:rgba(9,9,9,.94); border:1px solid var(--line-2); padding:46px 58px 42px;
+}
+.login-frame::before{ /* 顶部暗红细线 */
+  content:""; position:absolute; top:-1px; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--red) 28%, var(--red) 72%, transparent);
+}
+.login-corner{ position:absolute; width:14px; height:14px; border:1px solid var(--red); }
+.login-corner.tl{ top:-1px; left:-1px; border-right:none; border-bottom:none; }
+.login-corner.tr{ top:-1px; right:-1px; border-left:none; border-bottom:none; }
+.login-corner.bl{ bottom:-1px; left:-1px; border-right:none; border-top:none; }
+.login-corner.br{ bottom:-1px; right:-1px; border-left:none; border-top:none; }
+
+.login-title{
+  font-family:var(--serif); font-weight:900; font-size:26px; letter-spacing:8px;
+  color:var(--txt-bright); text-align:center; margin-bottom:4px;
+  animation:titlein 1.2s ease both; text-shadow:0 0 24px rgba(204,0,0,.25);
+}
+@keyframes titlein{ from{ opacity:0; letter-spacing:20px; } to{ opacity:1; letter-spacing:8px; } }
+.login-sub{
+  text-align:center; font-size:11px; color:var(--txt-dim); letter-spacing:4px; margin-bottom:30px;
+  animation:fadein 1.4s .6s ease both;
+}
+/* 终端打字机行：宽度由 0 展开到 100%，steps 离散逐字呈现（纯 CSS） */
+.typing-line{ width:max-content; max-width:100%; margin:6px 0; }
+.typing-line .tw{
+  display:inline-block; overflow:hidden; white-space:nowrap; vertical-align:bottom; width:0;
+  color:var(--txt); animation:tw-in 1.5s steps(30,end) both; animation-delay:var(--d);
+}
+@keyframes tw-in{ to{ width:100%; } }
+/* 末尾行：显示持续闪烁的终端光标 */
+.typing-line .tw.caret-line{ border-right:2px solid transparent; animation:tw-in 1.5s steps(30,end) both, caret-blink 1s step-end infinite; animation-delay:var(--d), calc(var(--d) + 1.5s); }
+@keyframes caret-blink{ 50%{ border-color:var(--red); } }
+
+.login-input-row{
+  margin-top:16px; display:flex; gap:10px; align-items:stretch;
+  animation:fadein .5s 5.2s ease both;
+}
+.login-input-row .tinput{ flex:1; }
+.login-hint{
+  margin-top:18px; font-size:11px; color:var(--red-deep); letter-spacing:2px; text-align:center;
+  animation:fadein .5s 6.0s ease both;
+}
+/* 老管理员留言：隐晦提示 */
+.login-hint2{
+  margin-top:10px; font-size:11px; color:var(--gold); opacity:.75; letter-spacing:1px; text-align:center;
+  animation:fadein .5s 6.6s ease both;
+}
+.secret-wait{ color:#5a4a1a; transition:color .3s; }
+body.secret .secret-wait{ color:var(--gold-br); }
+/* 绝密通道激活：整页金色边框 */
+.secret-frame{
+  position:fixed; inset:0; z-index:9946; pointer-events:none; display:none;
+  border:1px solid rgba(184,134,11,.4); box-shadow:inset 0 0 80px rgba(184,134,11,.07);
+}
+body.secret .secret-frame{ display:block; }
+#chip-id.gold{ color:var(--gold-br); }
+/* 验证过程日志区（登录后逐行打出） */
+.verify-log{ margin-top:18px; min-height:0; font-size:12px; color:var(--txt); }
+.verify-log .vline{ opacity:0; animation:vlin .18s ease forwards; color:var(--gold-br); }
+.verify-log .vline.err{ color:var(--blood); }
+@keyframes vlin{ from{ opacity:0; transform:translateY(3px); } to{ opacity:1; transform:none; } }
+/* 验证进度条（暗金 = 最高权限通道） */
+#verify-bar{ height:2px; margin-top:14px; background:linear-gradient(90deg, var(--gold), var(--gold-br)); width:0; }
+#verify-bar.on{ transition:width 4s linear; width:100%; }
+
+.login-bottom{
+  display:flex; gap:26px; font-size:11px; color:#4f4f4f; letter-spacing:2px;
+  animation:fadein 1s 6.6s ease both;
+}
+.login-bottom .rec{ color:var(--blood); animation:sblink 1.2s steps(2) infinite; }
+
+/* ===== 6. 顶部导航栏：半透明深黑 + 底部暗红细线 ===== */
+#topbar{
+  position:sticky; top:0; z-index:9000;
+  background:rgba(7,7,7,.92); border-bottom:1px solid var(--red);
+}
+.topbar-inner{
+  max-width:1760px; margin:0 auto; min-height:56px; padding:8px 22px;
+  display:flex; align-items:center; gap:14px 22px; flex-wrap:wrap;
+}
+/* Logo：鬼眼图标（内联 SVG）+ 标题 */
+.brand{ display:flex; align-items:center; gap:10px; font-family:var(--serif); font-weight:900; letter-spacing:3px; color:var(--txt-bright); font-size:16px; white-space:nowrap; }
+.brand .brand-sub{ font-family:var(--mono); font-size:10px; color:var(--gold); letter-spacing:2px; display:block; font-weight:400; }
+/* 导航：允许换行、链接不拆字，避免窄屏时中文被挤成竖排单字 */
+.nav{ display:flex; flex-wrap:wrap; align-items:center; gap:2px; margin-left:auto; flex:1 1 420px; }
+.nav a{
+  color:var(--txt-dim); text-decoration:none; font-size:13px; letter-spacing:2px;
+  padding:8px 14px; line-height:1.4; white-space:nowrap; border-bottom:2px solid transparent;
+  transition:color .2s, border-color .2s, background .2s;
+}
+.nav a:hover{ color:var(--txt-bright); background:rgba(204,0,0,.06); }
+.nav a.active{ color:var(--txt-bright); border-bottom-color:var(--red); background:rgba(204,0,0,.08); }
+.topbar-right{ display:flex; align-items:center; gap:14px; white-space:nowrap; }
+.user-chip{
+  border:1px solid var(--line-2); border-left:3px solid var(--gold); padding:4px 12px;
+  font-size:12px; color:var(--txt);
+}
+.user-chip .dot{ color:var(--blood); animation:sblink 1.4s steps(2) infinite; }
+.clock{ font-size:11px; color:#555; letter-spacing:1px; }
+.logout-btn{
+  background:transparent; border:1px solid #3a3a3a; color:var(--txt-dim); font-family:var(--mono);
+  font-size:12px; padding:5px 14px; cursor:pointer; transition:all .2s;
+}
+.logout-btn:hover{ border-color:var(--red); color:var(--red); }
+/* 音效开关按钮 */
+.sound-btn{
+  background:transparent; border:1px solid #3a3a3a; color:var(--txt-dim); font-family:var(--mono);
+  font-size:12px; padding:5px 12px; cursor:pointer; transition:all .2s;
+}
+.sound-btn:hover{ border-color:var(--gold); }
+.sound-btn.on{ border-color:var(--gold); color:var(--gold-br); }
+
+/* ===== 7. 主内容壳 ===== */
+#main-app{ padding:18px 22px 60px; }
+.shell{ max-width:1760px; margin:0 auto; }
+
+/* ===== 8. 事件面板 ===== */
+/* 顶部滚动条：统计 + 横向滚动信息流 */
+.ticker{
+  display:flex; border:1px solid var(--line-2); background:var(--bg-1); margin-bottom:18px;
+}
+.ticker-stats{
+  display:flex; gap:26px; padding:9px 18px; border-right:1px solid var(--line); white-space:nowrap;
+  font-size:12px; color:var(--txt-dim);
+}
+.ticker-stats b{ color:var(--txt-bright); font-weight:400; }
+.ticker-stats .hot{ color:var(--blood); font-weight:700; animation:sblink 2s steps(2) infinite; }
+.ticker-stream{ flex:1; overflow:hidden; position:relative; }
+.ticker-stream .ts-inner{ display:flex; width:max-content; white-space:nowrap; animation:scroll-x 38s linear infinite; }
+.ticker-stream .ts-half{ display:flex; gap:56px; padding:9px 28px; }
+.ticker-stream .ts-half span b{ color:var(--gold-br); font-weight:400; }
+.ticker-stream .ts-half .alarm{ color:var(--blood); }
+@keyframes scroll-x{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+
+.events-layout{ display:grid; grid-template-columns:1fr 300px; gap:18px; align-items:start; }
+.events-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+/* 事件卡片：直角细线，无圆角无阴影 */
+.event-card{
+  background:var(--bg-2); border:1px solid var(--line); padding:13px 15px; cursor:pointer;
+  position:relative; transition:background .2s, border-color .2s;
+}
+.event-card:hover{ background:var(--bg-3); border-color:#383838; }
+.event-card::before{ /* 左上角小记号，标示为"条目" */
+  content:""; position:absolute; top:0; left:0; width:6px; height:6px;
+  border-top:1px solid var(--red); border-left:1px solid var(--red);
+}
+.event-card.open{ border-color:var(--red-deep); }
+.ev-top{ display:flex; align-items:center; gap:10px; }
+.ev-name{ font-family:var(--serif); font-size:15px; font-weight:700; color:var(--txt-bright); flex:1; letter-spacing:1px; }
+.ev-exp{ font-size:11px; color:var(--txt-dim); white-space:nowrap; }
+.ev-exp::before{ content:"[ 展开详情 ]"; }
+.event-card.open .ev-exp::before{ content:"[ 收起 ]"; color:var(--gold); }
+.ev-meta{ display:flex; gap:18px; margin-top:9px; font-size:12px; color:var(--txt-dim); flex-wrap:wrap; }
+.ev-meta .ev-bounty{ color:var(--gold); }
+.ev-detail{ display:none; margin-top:11px; padding-top:11px; border-top:1px dashed var(--line-2); font-size:12px; }
+.ev-detail p{ color:var(--txt); margin-bottom:6px; }
+.ev-detail .ev-log{ color:#5a5a5a; font-size:11px; }
+.event-card.open .ev-detail{ display:block; animation:fadein .35s ease both; }
+.events-empty{ grid-column:1 / -1; text-align:center; padding:40px 0; color:var(--txt-dim); letter-spacing:2px; }
+
+/* 侧边栏：总部任务派遣 / 待处理事件 等快捷入口 */
+.side-panel{ border:1px solid var(--line-2); background:var(--bg-1); margin-bottom:14px; }
+.side-panel .sp-title{
+  padding:9px 14px; border-bottom:1px solid var(--line); font-size:12px; letter-spacing:2px;
+  color:var(--txt-dim); display:flex; justify-content:space-between; align-items:center;
+}
+.side-panel .sp-title .cnt{ color:var(--gold); }
+.side-list{ list-style:none; }
+.side-list li{
+  padding:10px 14px; border-bottom:1px solid #1a1a1a; font-size:12px; color:var(--txt);
+  cursor:pointer; display:flex; justify-content:space-between; gap:8px; transition:background .15s;
+}
+.side-list li:last-child{ border-bottom:none; }
+.side-list li:hover{ background:rgba(204,0,0,.07); color:var(--txt-bright); }
+.side-list li .tag{ color:var(--red); white-space:nowrap; }
+.s-alert{
+  border:1px solid var(--red); background:rgba(139,0,0,.08); padding:11px 14px; font-size:12px; color:var(--blood);
+  letter-spacing:1px;
+}
+.s-alert b{ font-weight:700; }
+
+/* ===== 9. 厉鬼等级查询 ===== */
+.search-bar{
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  border:1px solid var(--line-2); background:var(--bg-1); padding:12px 14px; margin-bottom:14px;
+}
+.search-bar .tinput{ flex:1; min-width:220px; }
+.search-bar .label{ font-size:11px; color:var(--txt-dim); letter-spacing:1px; }
+
+/* 等级划分说明区（常驻） */
+.legend-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.legend-cell{ border:1px solid var(--line); background:var(--bg-2); padding:12px 14px; }
+.legend-cell h4{ font-family:var(--serif); font-size:14px; margin-bottom:6px; letter-spacing:2px; display:flex; align-items:center; gap:8px; }
+.legend-cell p{ font-size:11px; color:var(--txt-dim); line-height:1.8; }
+.legend-note{ margin-top:10px; font-size:11px; color:#5f5f5f; letter-spacing:1px; }
+
+/* 检索结果列表 */
+.ghost-row{
+  border:1px solid var(--line); background:var(--bg-2); padding:12px 15px; margin-bottom:10px;
+  transition:border-color .2s;
+}
+.ghost-row:hover{ border-color:#3a3a3a; }
+.g-top{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.g-top b{ font-family:var(--serif); font-size:15px; color:var(--txt-bright); letter-spacing:2px; }
+.g-type{ font-size:11px; color:var(--gold); border:1px solid var(--gold); padding:0 6px; }
+.g-region{ font-size:11px; color:var(--txt-dim); }
+.g-power{ margin-top:8px; font-size:12px; color:var(--txt); }
+.g-warn{ margin-top:6px; font-size:12px; color:var(--red); }
+.g-warn::before{ content:"【危险提示】"; color:var(--blood); font-weight:700; }
+/* 彩蛋：杨间 / 鬼眼 特殊记录 */
+.egg-notice{
+  border:1px solid var(--blood); background:rgba(139,0,0,.10); padding:12px 16px; margin-bottom:14px;
+  font-size:13px; color:var(--blood); letter-spacing:3px; font-weight:700;
+  animation:egg-pulse 1.6s ease-in-out infinite;
+}
+@keyframes egg-pulse{ 50%{ border-color:var(--red-deep); background:rgba(139,0,0,.16); } }
+.result-count{ font-size:12px; color:var(--txt-dim); margin-bottom:12px; letter-spacing:1px; }
+.result-count b{ color:var(--gold); font-weight:400; }
+
+/* 任务简报（厉鬼条目内可展开详情） */
+.ghost-row{ cursor:pointer; }
+.ghost-row .g-exp{ font-size:11px; color:var(--txt-dim); white-space:nowrap; }
+.ghost-row .g-exp::before{ content:"[ 查看任务简报 ]"; }
+.ghost-row.open .g-exp::before{ content:"[ 收起简报 ]"; color:var(--gold); }
+.g-brief{ display:none; margin-top:11px; padding-top:11px; border-top:1px dashed var(--line-2); font-size:12px; }
+.ghost-row.open .g-brief{ display:block; animation:fadein .3s ease both; }
+.g-brief .bf-row{ display:flex; gap:10px; padding:5px 0; border-bottom:1px dotted #1c1c1c; }
+.g-brief .bf-row:last-child{ border-bottom:none; }
+.g-brief .bf-k{ min-width:84px; color:var(--gold); white-space:nowrap; }
+.g-brief .bf-k::after{ content:"："; }
+.g-brief .bf-v{ color:var(--txt); }
+.g-brief .bf-v.red{ color:var(--red); }
+
+/* 嵌套资料卡（顶级厉鬼 / 鬼域档案） */
+.sub-wrap{ margin-top:10px; }
+.sub-card{ border:1px solid var(--line); border-left:3px solid var(--red-deep); background:#101010; margin-bottom:8px; }
+.sub-head{ display:flex; align-items:center; gap:10px; padding:9px 13px; cursor:pointer; font-size:13px; color:var(--txt-bright); transition:background .15s; }
+.sub-head:hover{ background:var(--bg-3); }
+.sub-mk{ color:var(--gold); font-size:11px; }
+.sub-mk::before{ content:"[+]"; }
+.sub-card.open .sub-mk::before{ content:"[-]"; }
+.sub-title{ flex:1; letter-spacing:1px; }
+.sub-body{ display:none; padding:2px 14px 12px; border-top:1px solid var(--line); font-size:12px; color:var(--txt); line-height:1.9; }
+.sub-card.open .sub-body{ display:block; animation:fadein .3s ease both; }
+.k-note{ margin-top:10px; font-size:11px; color:#5a5a5a; letter-spacing:1px; }
+
+/* ===== 10. 驭鬼者档案 ===== */
+.rider-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.rider-card{
+  border:1px solid var(--line); background:var(--bg-2); padding:14px 16px; position:relative;
+  transition:border-color .2s;
+}
+.rider-card:hover{ border-color:#3a3a3a; }
+.r-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+.r-code{ font-family:var(--serif); font-size:17px; color:var(--txt-bright); letter-spacing:3px; }
+.secret-tag{ font-size:11px; border:1px solid currentColor; padding:0 8px; white-space:nowrap; }
+.st-top{ color:var(--blood); animation:sblink 1.4s steps(2) infinite; }
+.st-sec{ color:var(--red); }
+.st-low{ color:var(--gold); }
+.rider-card dl{ margin:0; }
+.rider-card dl > div{ display:flex; gap:10px; font-size:12px; padding:3px 0; border-bottom:1px dotted #1c1c1c; }
+.rider-card dl > div:last-child{ border-bottom:none; }
+.rider-card dt{ color:var(--txt-dim); min-width:74px; white-space:nowrap; }
+.rider-card dd{ color:var(--txt); }
+.rider-card .r-note{ margin-top:10px; font-size:11px; color:#6f6f6f; border-top:1px dashed var(--line-2); padding-top:9px; line-height:1.8; }
+
+/* ===== 11. 知识百科（可折叠） ===== */
+.k-card{ border:1px solid var(--line); background:var(--bg-2); margin-bottom:12px; }
+.k-head{
+  display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer;
+  transition:background .15s; user-select:none;
+}
+.k-head:hover{ background:var(--bg-3); }
+.k-mk{ color:var(--gold); font-size:12px; }
+.k-mk::before{ content:"[+]"; }
+.k-card.open .k-mk::before{ content:"[-]"; }
+.k-title{ font-family:var(--serif); font-size:15px; font-weight:700; color:var(--txt-bright); letter-spacing:2px; flex:1; }
+.k-tag{ font-size:10px; border:1px solid var(--red); color:var(--red); padding:0 7px; letter-spacing:2px; }
+.k-body{ display:none; padding:4px 16px 15px; border-top:1px solid var(--line); font-size:12.5px; color:var(--txt); }
+.k-card.open .k-body{ display:block; animation:fadein .35s ease both; }
+.k-body p{ margin:8px 0; line-height:1.9; }
+.k-body .k-rule{ color:var(--gold); }
+.k-body .k-key{ color:var(--blood); font-weight:700; }
+
+/* ===== 12. 悬赏榜 ===== */
+.b-head, .b-row{
+  display:grid; grid-template-columns:52px 70px 1fr 220px 170px 90px 190px; gap:12px; align-items:center;
+  padding:10px 16px; font-size:12px;
+}
+.b-head{ border:1px solid var(--line-2); background:var(--bg-1); color:var(--txt-dim); letter-spacing:1px; }
+.b-row{ border:1px solid var(--line); border-top:none; background:var(--bg-2); transition:background .15s; }
+.b-row:hover{ background:var(--bg-3); }
+.b-rank{ color:#555; font-size:14px; }
+.b-rank.top3{ color:var(--gold); font-weight:700; }
+.b-name{ font-family:var(--serif); color:var(--txt-bright); font-weight:700; letter-spacing:1px; }
+.b-loc{ color:var(--txt-dim); }
+.b-amt{ color:var(--gold-br); font-weight:700; }
+.b-status{ color:var(--red); }
+.b-org{ color:var(--txt-dim); font-size:11px; }
+.b-foot{ margin-top:12px; font-size:11px; color:#5a5a5a; letter-spacing:1px; }
+
+/* ===== 13. 灵异信号强度指示条（左下角常驻） ===== */
+.signal{
+  position:fixed; left:16px; bottom:16px; z-index:9500; min-width:150px;
+  border:1px solid var(--line-2); border-left:3px solid var(--red); background:rgba(9,9,9,.92);
+  padding:9px 12px; pointer-events:none;
+}
+.signal-head{ display:flex; align-items:center; gap:8px; font-size:11px; color:var(--txt-dim); letter-spacing:2px; }
+.signal-head .led{ width:7px; height:7px; background:var(--blood); border-radius:0; animation:sblink 1.1s steps(2) infinite; }
+.signal-bars{ display:flex; gap:3px; align-items:flex-end; height:20px; margin-top:7px; }
+.signal-bars i{
+  width:4px; background:var(--red); transform-origin:bottom; height:100%;
+  animation:sig-bar 1.5s ease-in-out infinite; animation-delay:calc(var(--i) * .13s);
+}
+.signal-bars i.on{ background:var(--gold); }
+@keyframes sig-bar{ 0%,100%{ transform:scaleY(.25); } 50%{ transform:scaleY(1); } }
+.signal-val{ font-size:16px; color:var(--gold-br); margin-top:4px; letter-spacing:1px; }
+.signal-sub{ font-size:9px; color:#4f4f4f; letter-spacing:2px; margin-top:2px; }
+
+/* ===== 14. 信号干扰闪烁 / 页面抖动（搜索时触发） ===== */
+#glitch{
+  position:fixed; inset:0; z-index:9990; pointer-events:none; opacity:0;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 2px, transparent 2px 70px);
+}
+#glitch.on{ animation:glitch-f .5s steps(3) 2; }
+@keyframes glitch-f{ 0%{ opacity:0; } 30%{ opacity:.55; } 55%{ opacity:.12; } 80%{ opacity:.4; } 100%{ opacity:0; } }
+#main-app.shake{ animation:shake .45s steps(3) 2; }
+@keyframes shake{ 25%{ transform:translateX(-4px); } 50%{ transform:translateX(4px); } 75%{ transform:translateX(-2px); } }
+
+/* ===== 15. Toast 日志通知（右下角） ===== */
+#toast{ position:fixed; right:18px; bottom:18px; z-index:9600; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+.toast-item{
+  border:1px solid var(--line-2); border-left:3px solid var(--red); background:rgba(11,11,11,.95);
+  padding:9px 14px; font-size:11.5px; color:var(--txt); max-width:360px;
+  animation:toast-in .25s ease both; transition:opacity .4s;
+}
+.toast-item.warn{ border-left-color:var(--blood); color:var(--blood); }
+.toast-item.gold{ border-left-color:var(--gold); color:var(--gold-br); }
+@keyframes toast-in{ from{ opacity:0; transform:translateX(14px); } to{ opacity:1; transform:none; } }
+
+/* ===== 16. 响应式（桌面内网系统：宽屏优先，窄屏整体横滚） ===== */
+@media (max-width:1560px){
+  .events-layout{ grid-template-columns:1fr 260px; }
+  .legend-grid{ grid-template-columns:repeat(2,1fr); }
+  .rider-grid{ grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:1280px){
+  .events-grid{ grid-template-columns:1fr; }
+  .b-head, .b-row{ grid-template-columns:44px 60px 1fr 160px 150px 80px; }
+  .b-head .b-org, .b-row .b-org{ display:none; }
+}
+/* ===== 移动端适配（≤768px：单列流式，触控友好） ===== */
+@media (max-width:768px){
+  .watermark span{ font-size:38px; }
+
+  /* 顶栏：品牌+右侧操作一行，菜单整行折到下方，触控高度加大 */
+  .topbar-inner{ padding:8px 12px; gap:8px 12px; }
+  .brand{ font-size:14px; letter-spacing:2px; }
+  .brand-sub{ display:none; }
+  .nav{ flex:1 1 100%; margin-left:0; }
+  .nav a{ padding:10px 12px; font-size:12.5px; letter-spacing:1px; }
+  .topbar-right{ gap:8px; }
+  .user-chip{ font-size:11px; padding:3px 8px; }
+  .sound-btn, .logout-btn{ padding:8px 10px; font-size:11px; }
+
+  /* 顶部滚动条：统计与信息流改为上下两行 */
+  .ticker{ flex-direction:column; }
+  .ticker-stats{ flex-wrap:wrap; gap:6px 16px; padding:8px 10px; border-right:none; border-bottom:1px solid var(--line); }
+  .ticker-stream .ts-inner{ padding:8px 0 8px 10px; }
+
+  /* 事件区：事件单列、侧边栏整体下移 */
+  .events-layout{ grid-template-columns:1fr; }
+  .events-grid{ grid-template-columns:1fr; }
+
+  /* 检索区：输入框整行，筛选器三列并排放 */
+  .search-bar{ padding:10px; gap:8px; }
+  .search-bar .tinput{ flex:1 1 100%; }
+  .search-bar .tselect{ flex:1 1 30%; }
+
+  /* 等级说明 / 驭鬼者档案：单列 */
+  .legend-grid{ grid-template-columns:1fr; }
+  .rider-grid{ grid-template-columns:1fr; }
+
+  /* 悬赏榜：隐藏表头，每条记录改为纵向堆叠 */
+  .b-head{ display:none; }
+  .b-row{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; }
+  .b-row .b-name, .b-row .b-loc{ flex:1 1 100%; }
+
+  /* 卡片紧凑化 */
+  .event-card, .ghost-row, .sub-card, .k-card{ padding-left:12px; padding-right:12px; }
+  .g-brief .bf-row{ flex-wrap:wrap; }
+
+  /* 登录框：撑满窄屏，输入与按钮竖排 */
+  .login-frame{ width:94vw; padding:28px 18px; }
+  .login-title{ font-size:19px; letter-spacing:3px; }
+  .login-input-row{ flex-direction:column; }
+  .typing-line .tw{ white-space:normal; word-break:break-all; }
+
+  /* 角落组件贴边缩小 */
+  .signal{ left:8px; bottom:8px; transform:scale(.85); transform-origin:bottom left; }
+  #toast .toast-item{ max-width:calc(100vw - 20px); margin-right:10px; }
+
+  /* 内容边距收窄 */
+  #main-app{ padding:12px 10px 80px; }
+}
+/* 极小屏（≤480px）：隐藏时钟，给菜单和操作按钮腾宽度 */
+@media (max-width:480px){
+  .clock{ display:none; }
+}
+
+/* 尊重系统"减少动效"偏好 */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation:none !important; transition:none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- 保密水印：总部机密 · 禁止外传 -->
+<div class="watermark" aria-hidden="true">
+  <span>总部机密 · 禁止外传</span><span>总部机密 · 禁止外传</span>
+  <span>总部机密 · 禁止外传</span><span>总部机密 · 禁止外传</span>
+</div>
+<!-- CRT 扫描光带 -->
+<div class="crt-sweep" aria-hidden="true"></div>
+<!-- 信号干扰闪烁层 -->
+<div id="glitch" aria-hidden="true"></div>
+<!-- 绝密通道激活后的金色边框（默认隐藏） -->
+<div class="secret-frame" aria-hidden="true"></div>
+
+<!-- ============================================================
+     模块1：登录验证层
+     ============================================================ -->
+<div id="login-screen">
+  <div class="login-frame">
+    <!-- 四角定位角标 -->
+    <span class="login-corner tl"></span><span class="login-corner tr"></span>
+    <span class="login-corner bl"></span><span class="login-corner br"></span>
+
+    <h1 class="login-title">驭鬼者总部</h1>
+    <div class="login-sub">—— 灵异资料检索系统 · 加密登录 ——</div>
+
+    <!-- 终端逐行打字机输出（纯 CSS steps 动画） -->
+    <div class="typing-line" style="--d:.5s"><span class="tw">&gt; SYSTEM BOOT v3.7.1 · 通道：总部内网</span></div>
+    <div class="typing-line" style="--d:2.2s"><span class="tw">&gt; 今日厉鬼复苏指数：87.6% · 全线警戒</span></div>
+    <div class="typing-line" style="--d:3.9s"><span class="tw caret-line">&gt; 请输入驭鬼者编号以验证身份：</span></div>
+
+    <!-- 编号输入 + 验证按钮 -->
+    <form class="login-input-row" id="login-form" autocomplete="off">
+      <input class="tinput" id="rider-id" type="text" placeholder="请输入驭鬼者编号（任意编号，仅演示）" maxlength="24">
+      <button class="tbtn" id="login-btn" type="submit">验证身份</button>
+    </form>
+    <div class="login-hint">非授权人员访问将被记录并追责</div>
+    <!-- 老管理员留言：隐晦提示绝密通道 -->
+    <div class="login-hint2">&gt;&gt; 档案管理员留言：普通编号随便填即可登录。绝密通道不写在任何档案里——但有些名字，本身就是通行证。</div>
+
+    <!-- 验证过程日志（登录时 JS 逐行写入） -->
+    <div class="verify-log" id="verify-log"></div>
+    <div id="verify-bar"></div>
+  </div>
+  <div class="login-bottom">
+    <span><span class="rec">● REC</span> 访问日志实时上传</span>
+    <span>保密等级：S级 · LEVEL-3</span>
+    <span>总部机要处监制</span>
+    <span class="secret-wait">绝密通道：待激活</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     主界面（登录后显示）
+     ============================================================ -->
+<div id="main-app" class="hidden">
+
+  <!-- ===== 模块6：顶部导航栏 ===== -->
+  <header id="topbar">
+    <div class="topbar-inner">
+      <!-- 左侧 Logo：鬼眼图标 + 标题 -->
+      <div class="brand">
+        <svg width="34" height="18" viewBox="0 0 34 18" aria-hidden="true">
+          <path d="M2 9 C9 2.5 25 2.5 32 9 C25 15.5 9 15.5 2 9 Z" fill="none" stroke="#cc0000" stroke-width="1.3"></path>
+          <circle cx="17" cy="9" r="3.4" fill="none" stroke="#cc0000" stroke-width="1.1"></circle>
+          <circle cx="17" cy="9" r="1.2" fill="#cc0000"></circle>
+          <line x1="17" y1="0.5" x2="17" y2="17.5" stroke="#cc0000" stroke-width="0.5" opacity="0.5"></line>
+        </svg>
+        <span>驭鬼者总部<span class="brand-sub">SPIRIT CONTAINMENT BUREAU</span></span>
+      </div>
+      <!-- 中间导航项 -->
+      <nav class="nav">
+        <a href="#events" data-route="events" class="active">事件面板</a>
+        <a href="#ghosts" data-route="ghosts">厉鬼查询</a>
+        <a href="#riders" data-route="riders">驭鬼者档案</a>
+        <a href="#knowledge" data-route="knowledge">知识百科</a>
+        <a href="#bounty" data-route="bounty">悬赏榜</a>
+      </nav>
+      <!-- 右侧：登录编号 + 时钟 + 退出 -->
+      <div class="topbar-right">
+        <span class="user-chip"><span class="dot">●</span> 驭鬼者 <span id="chip-id">----</span> · 在线</span>
+        <span class="clock" id="clock"></span>
+        <button class="sound-btn on" id="sound-btn" type="button">[ 音效：开 ]</button>
+        <button class="logout-btn" id="logout-btn" type="button">[ 退出系统 ]</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+
+    <!-- ===== 模块2：全球灵异事件实时面板 ===== -->
+    <section class="view active" id="view-events">
+      <!-- 顶部滚动条 -->
+      <div class="ticker">
+        <div class="ticker-stats">
+          <span>今日厉鬼复苏指数：<b class="hot" id="tick-index">87.6%</b></span>
+          <span>当前活跃事件：<b id="tick-count">10</b> 起</span>
+          <span>待处理A级以上事件：<b style="color:var(--blood)">3</b> 起</span>
+          <span>在线驭鬼者：<b>47</b> 人</span>
+        </div>
+        <!-- 滚动信息流（JS 生成，内容复制两份实现无缝循环） -->
+        <div class="ticker-stream"><div class="ts-inner" id="ticker-stream"></div></div>
+      </div>
+
+      <div class="events-layout">
+        <!-- 事件卡片列表 -->
+        <div>
+          <div class="panel" style="margin-bottom:14px">
+            <div class="panel-head">实时事件情报流 · 按威胁等级排序</div>
+            <div class="panel-body" style="padding:12px">
+              <div class="events-grid" id="events-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 侧边栏：总部快捷入口 -->
+        <aside>
+          <div class="side-panel">
+            <div class="sp-title">总部任务派遣 <span class="cnt">[3]</span></div>
+            <ul class="side-list">
+              <li>派遣单 T-0931 · 大昌市鬼邮局增援 <span class="tag">S级</span></li>
+              <li>派遣单 T-0930 · 伦敦雾区侦查 <span class="tag">A级</span></li>
+              <li>派遣单 T-0928 · 湄南河旧寺封锁 <span class="tag">B级</span></li>
+            </ul>
+          </div>
+          <div class="side-panel">
+            <div class="sp-title">待处理事件 <span class="cnt">[7]</span></div>
+            <ul class="side-list">
+              <li>加州稻草人庄园 续监 <span class="tag">C级</span></li>
+              <li>开罗金字塔区异响 复核 <span class="tag">B级</span></li>
+              <li>雨林考察队搜救 待命 <span class="tag">A级</span></li>
+              <li>西伯利亚冻土 增援协调 <span class="tag">A级</span></li>
+            </ul>
+          </div>
+          <div class="side-panel">
+            <div class="sp-title">黄金物资申领 <span class="cnt">[通道开放]</span></div>
+            <ul class="side-list">
+              <li>黄金棺椁 · 库存 14 / 16</li>
+              <li>黄金隔离间 · 占用 8 / 12</li>
+              <li>黄金探测棒 · 待调配 23 支</li>
+            </ul>
+          </div>
+          <div class="s-alert"><b>红色警报：</b>大昌市"鬼邮局"出现第二次异常投递，S级小队全员待命。请勿以任何方式签收黑色邮戳信件。</div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===== 模块3：厉鬼等级查询系统 ===== -->
+    <section class="view" id="view-ghosts">
+      <!-- 检索区：关键词 + 三级筛选器 -->
+      <div class="search-bar">
+        <input class="tinput" id="g-kw" type="text" placeholder="输入厉鬼名称 / 关键词检索……">
+        <span class="label">等级</span>
+        <select class="tselect" id="g-lv">
+          <option value="">全部</option><option value="C">C级</option><option value="B">B级</option>
+          <option value="A">A级</option><option value="S">S级</option>
+        </select>
+        <span class="label">能力类型</span>
+        <select class="tselect" id="g-type">
+          <option value="">全部</option><option value="鬼域">鬼域</option><option value="必死规律">必死规律</option>
+          <option value="鬼奴">鬼奴</option><option value="重启">重启</option>
+        </select>
+        <span class="label">出现地区</span>
+        <select class="tselect" id="g-region">
+          <option value="">全部</option><option value="华国">华国</option><option value="美洲">美洲</option>
+          <option value="欧洲">欧洲</option><option value="亚洲">亚洲</option><option value="其他">其他</option>
+        </select>
+        <button class="tbtn" id="g-search" type="button">检索</button>
+      </div>
+
+      <!-- 彩蛋：检索 杨间 / 鬼眼 时显示 -->
+      <div class="egg-notice hidden" id="ghost-egg">&gt;&gt; 已故。死于十层鬼域。档案永久封锁。</div>
+
+      <!-- 等级划分说明区（常驻显示） -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-head">厉鬼等级划分标准 · 总部统一口径</div>
+        <div class="panel-body">
+          <div class="legend-grid">
+            <div class="legend-cell">
+              <h4><span class="lv-tag lv-c">C级</span> 限制级</h4>
+              <p>危害低于100人，固定区域，可被限制收容。常规小队携带黄金器械即可处理。</p>
+            </div>
+            <div class="legend-cell">
+              <h4><span class="lv-tag lv-b">B级</span> 危险级</h4>
+              <p>具备游走能力，危害低于1万人，无法收容但可限制。需多名驭鬼者协同压制。</p>
+            </div>
+            <div class="legend-cell">
+              <h4><span class="lv-tag lv-a">A级</span> 灾难级</h4>
+              <p>可杀死一座城市人口，极度恐怖，无法限制收容。总部直属小队优先介入。</p>
+            </div>
+            <div class="legend-cell">
+              <h4><span class="lv-tag lv-s">S级</span> 毁灭级</h4>
+              <p>可摧毁数个城市，甚至毁灭一个国家。动用黄金隔离间与最高权限，一切以封锁为先。</p>
+            </div>
+          </div>
+          <div class="legend-note">注：等级划分仅代表厉鬼对世界的危害程度，不代表其恐怖级别。</div>
+        </div>
+      </div>
+
+      <div class="result-count" id="ghost-count"></div>
+      <div id="ghost-results"></div>
+    </section>
+
+    <!-- ===== 模块4：驭鬼者档案 ===== -->
+    <section class="view" id="view-riders">
+      <div class="search-bar">
+        <input class="tinput" id="r-kw" type="text" placeholder="按代号或真名检索驭鬼者档案……">
+        <button class="tbtn" id="r-search" type="button">检索</button>
+        <span class="label" style="color:#5a5a5a">提示：可检索"杨间 / 鬼眼 / 李军 / 叶真"</span>
+      </div>
+
+      <!-- 彩蛋：检索 杨间 / 鬼眼 时显示 -->
+      <div class="egg-notice hidden" id="rider-egg">&gt;&gt; 已故。死于十层鬼域。档案永久封锁。此条目已移交"绝密"档案库。</div>
+
+      <div class="result-count" id="rider-count"></div>
+      <div class="rider-grid" id="rider-grid"></div>
+    </section>
+
+    <!-- ===== 模块5：厉鬼知识百科（可折叠） ===== -->
+    <section class="view" id="view-knowledge">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head">厉鬼知识百科 · 核心规则条目（点击展开 / 折叠）</div>
+      </div>
+      <div id="knowledge-list"></div>
+      <div class="b-foot" style="margin-top:6px">—— 以上条目由总部学术司审定，驭鬼者入职必修。违反黄金隔离规范者，一律追究档案责任。</div>
+    </section>
+
+    <!-- ===== 模块7：悬赏榜 ===== -->
+    <section class="view" id="view-bounty">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head">全球未解决事件悬赏榜 · 按悬赏金额从高到低排序</div>
+      </div>
+      <div class="b-head">
+        <span>名次</span><span>等级</span><span>事件名称</span><span>地点</span>
+        <span>悬赏金额</span><span>状态</span><span>受理单位</span>
+      </div>
+      <div id="bounty-list"></div>
+      <div class="b-foot">注：以上悬赏由各国政府及组织发布，接取需总部资质审核，赏金以黄金等价物结算。</div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast 通知容器 -->
+<div id="toast" aria-live="polite"></div>
+
+<!-- 灵异信号强度指示条 -->
+<div class="signal" aria-hidden="true">
+  <div class="signal-head"><span class="led"></span> 灵异信号强度</div>
+  <div class="signal-bars">
+    <i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i>
+    <i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i>
+  </div>
+  <div class="signal-val" id="signal-val">97%</div>
+  <div class="signal-sub">SIGNAL · 总部中继站</div>
+</div>
+
+<script>
+/* ============================================================
+   驭鬼者总部 · 灵异资料检索系统 —— 数据与交互逻辑
+   全部数据用 JS 对象模拟，无后端
+   ============================================================ */
+
+/* ===== 数据：全球灵异事件 ===== */
+const EVENTS = [
+  { id:1, name:"米国加州稻草人庄园事件", loc:"米国 · 加利福尼亚州", lv:"C", amt:50000000,  ppl:12, org:"国际驭鬼者联盟",
+    time:"2026-09-28", status:"持续监视",
+    desc:"庄园周边麦田出现会移动的稻草人，主动驱赶并袭击接近者。已确认稻草人具备群体协同，疑似鬼奴繁殖。事件限制于庄园三公里半径内，C级小队轮班监视。" },
+  { id:2, name:"华国大昌市鬼邮局事件", loc:"华国 · 大昌市", lv:"S", amt:1200000000, ppl:37, org:"总部直属",
+    time:"2026-10-01", status:"S级响应中",
+    desc:"已废弃的邮局重新“营业”，寄出的信件可跨越鬼域投递至收件人手中，收件人无法拒绝签收。已确认多起失踪案与其关联，黄金隔离间已就绪，等待总部增援。" },
+  { id:3, name:"日本东京地铁隧道事件", loc:"日本 · 东京都", lv:"B", amt:180000000,  ppl:21, org:"亚洲联合分部",
+    time:"2026-09-30", status:"封闭排查",
+    desc:"末班车后隧道内出现无头乘客，目击者全部失踪。已封闭三站区间，正在排查隧道中段异常源，B级驭鬼者小队已下井作业。" },
+  { id:4, name:"英国伦敦雾灾事件", loc:"英国 · 伦敦", lv:"A", amt:450000000,  ppl:28, org:"欧洲分部",
+    time:"2026-10-02", status:"A级封锁",
+    desc:"局部浓雾三日内不散，雾中传出人声呼救，救援队进入后失联。雾区边缘检测到鬼域波动，判定为A级灾难，黄金隔离帷幕已架设。" },
+  { id:5, name:"俄罗斯西伯利亚冻土事件", loc:"俄罗斯 · 西伯利亚", lv:"A", amt:380000000, ppl:19, org:"国际驭鬼者联盟",
+    time:"2026-09-26", status:"A级封锁",
+    desc:"永久冻土带挖掘出“不该存在”的古生物残骸，随后工地全员失踪。当地驻军封锁半径五十公里，请求驭鬼者支援，现场已检测到高强度灵异信号。" },
+  { id:6, name:"泰国湄南河浮尸事件", loc:"泰国 · 曼谷", lv:"B", amt:95000000,   ppl:15, org:"亚洲联合分部",
+    time:"2026-09-29", status:"持续调查",
+    desc:"湄南河连续七日浮出无脸尸体，死者身份均无法确认。推测与河底“旧寺”鬼域入口有关，潜水队携带黄金锚点进行声呐排查。" },
+  { id:7, name:"澳洲内陆回声谷事件", loc:"澳大利亚 · 内陆荒漠", lv:"C", amt:32000000, ppl:9, org:"国际驭鬼者联盟",
+    time:"2026-09-25", status:"持续监视",
+    desc:"荒漠中反复出现“回声”，与先遣队呼号一致，GPS在此地周期性失灵。建议C级小队携黄金探测棒前往排查，判定为低危异常源。" },
+  { id:8, name:"埃及开罗金字塔区异响事件", loc:"埃及 · 开罗", lv:"B", amt:120000000, ppl:17, org:"国际驭鬼者联盟",
+    time:"2026-09-27", status:"持续调查",
+    desc:"吉萨高地深夜传出低频震动，考古队拍摄到“影子沿着墓道移动”的影像。当地政府请求国际驭鬼者支援，墓道入口已以黄金封条封锁。" },
+  { id:9, name:"巴西雨林考察队失踪事件", loc:"巴西 · 亚马逊雨林", lv:"A", amt:290000000, ppl:25, org:"国际驭鬼者联盟",
+    time:"2026-10-02", status:"A级搜救",
+    desc:"一队携带黄金装备的考察队在雨林深处全员失联，卫星信号在失联点被“吞没”。已派出A级支援小组，携带两台黄金信号中继器进入。" },
+  { id:10, name:"华国旧城“灵异论坛”旧址事件", loc:"华国 · 中部某市", lv:"S", amt:900000000, ppl:41, org:"总部直属",
+    time:"2026-10-03", status:"S级响应中",
+    desc:"旧址废墟夜间恢复供电，窗口出现人影向路人招手。涉及灵异论坛历史档案，总部要求优先处理，非授权人员禁止接近旧址三公里范围。" }
+];
+
+/* ===== 数据：厉鬼资料库（含任务简报字段） ===== */
+const GHOSTS = [
+  { name:"鬼眼", lv:"A", type:"鬼域", region:"华国", loc:"大昌市",
+    power:"以目光覆盖之地展开鬼域，层数可无限叠加，注视者将失去对真实世界的感知。",
+    warn:"勿与拥有鬼眼者对视超过三秒；若视野中出现红色竖瞳，立即以黄金遮挡视线。",
+    brief:{ scope:"视线覆盖范围，层数可至十层", rule:"被鬼眼注视者坠入鬼域，失去对现实的感知", weak:"黄金可隔绝视线与感知；断目即失效", plan:"禁止对视，佩戴黄金面罩，三秒内撤离视线范围" } },
+  { name:"鬼影", lv:"S", type:"鬼域", region:"华国", loc:"大昌市",
+    power:"必死规律：被影子覆盖者死亡。鬼域内一切阴影皆为鬼影之身，无死角。",
+    warn:"保持光源稳定，鬼域内禁止熄灭任何光源；你的影子一旦“站了起来”，不要回头看。",
+    brief:{ scope:"鬼域内一切阴影覆盖区域", rule:"被影子覆盖者死亡，无接触豁免", weak:"持续光源可暂缓其移动；黄金光源可驱散阴影", plan:"全程保持照明，双人背靠背推进，发现影子异常立即开启黄金光源" } },
+  { name:"鬼火", lv:"B", type:"必死规律", region:"华国", loc:"总部辖区",
+    power:"青蓝色火焰，触之即燃，焚尽后不留痕迹，常规手段无法扑灭。",
+    warn:"远离一切蓝绿色火光；遇鬼火封锁，唯有黄金能隔绝其灼烧。",
+    brief:{ scope:"火焰蔓延的整片区域", rule:"触之即燃，焚尽无痕", weak:"黄金可隔绝灼烧；水与沙土均无效", plan:"以黄金隔离帷幕推进压制，严禁正面接触" } },
+  { name:"鬼差", lv:"S", type:"必死规律", region:"华国", loc:"大昌市",
+    power:"点名勾魂，被呼唤全名者魂魄离体，无法以物理方式干预。",
+    warn:"深夜听见有人呼唤你的全名，无论声音多熟悉，切勿应答。",
+    brief:{ scope:"点名覆盖范围（可及整座城市）", rule:"呼唤全名即勾魂，无距离限制", weak:"不应答则无法锁定（存疑）；黄金封口可短暂屏蔽", plan:"全员以代号通信，禁止报出真名；携带黄金口塞备用" } },
+  { name:"稻草人", lv:"C", type:"鬼奴", region:"美洲", loc:"米国加州",
+    power:"操控稻草傀儡驱赶接近者，具备简单群体协同，本体藏于麦田深处。",
+    warn:"麦田中不存在的“稻草人”会移动；不要靠近庄园麦田边缘。",
+    brief:{ scope:"庄园麦田半径三公里", rule:"接近麦田边缘即遭稻草傀儡群体袭击", weak:"黄金可使傀儡失效；本体需以黄金器物钉住", plan:"C级小队携带黄金器械清扫，焚烧傀儡无效，优先定位并封锁本体" } },
+  { name:"鬼邮局", lv:"S", type:"鬼域", region:"华国", loc:"大昌市",
+    power:"以邮局为媒介的鬼域，信件可跨越鬼域投递，收件人无法拒绝签收。",
+    warn:"收到盖有黑色邮戳的信件请立即上交总部，切勿拆阅或转交他人。",
+    brief:{ scope:"废弃邮局及其投递网络（可跨越鬼域）", rule:"黑色邮戳信件签收即死，收件人不可拒绝", weak:"黄金容器可拦截投递；退信需沿原路返回", plan:"设立黄金收件箱集中拦截，全员拒收黑戳信件，发现立即上交总部" } },
+  { name:"敲门鬼", lv:"A", type:"必死规律", region:"华国", loc:"七中 / 中部",
+    power:"午夜响起的敲门声，应门者死亡，敲门者身份不可观测。鬼域范围覆盖整栋楼。",
+    warn:"凌晨三点的敲门声，无论门外是谁的声音都不可开门；黄金门贴可暂时屏蔽。",
+    brief:{ scope:"鬼域范围覆盖整栋楼", rule:"敲门必死——应门者死亡，敲门者身份不可观测", weak:"不应门则不触发；黄金门贴可屏蔽敲门声", plan:"A级响应：深夜不回应任何敲门；携带黄金门贴逐层封锁并全楼疏散" } },
+  { name:"鬼新娘", lv:"A", type:"必死规律", region:"华国", loc:"东部",
+    power:"触发条件为“婚礼”，被选中者将举行一场无人参加的婚礼，随后消失。",
+    warn:"若收到无落款的婚礼请柬且写有你的名字，立即上报总部并佩戴黄金饰物。",
+    brief:{ scope:"婚礼现场及请柬覆盖范围", rule:"收到无落款请柬即被选中，婚礼举行时消失", weak:"黄金饰物可延缓触发；拒绝出席可推迟", plan:"收到请柬立即上报；全程佩戴黄金饰物，禁止独自参加任何婚礼" } },
+  { name:"无头鬼", lv:"B", type:"必死规律", region:"欧洲", loc:"欧陆诸国",
+    power:"失去头颅仍能行走的厉鬼，被其触碰者头颅消失，目击者记忆随之残缺。",
+    warn:"夜间独行听见脚步声却不见人影，即刻进入有光区域并联系就近驻点。",
+    brief:{ scope:"夜间独行者的行进路线", rule:"被触碰者头颅消失", weak:"强光环境可令其退避；黄金器械可驱赶", plan:"夜间禁止独行，与驻点保持通讯，进入有光区域待援" } },
+  { name:"鬼湖", lv:"S", type:"鬼域", region:"华国", loc:"西部高原",
+    power:"湖泊本体即鬼域入口，涉水者迷失于无水之湖，尸体浮于千里之外。",
+    warn:"湖区禁止单人靠近，GPS与罗盘在湖区全部失灵，进入须携带黄金锚点。",
+    brief:{ scope:"整个湖区（含地下水域）", rule:"涉水者迷失于无水之湖", weak:"黄金锚点可标记入口；卫星信号在湖面失效", plan:"禁止单人靠近；携带黄金锚点索降，信号中断立即撤离" } },
+  { name:"鬼钟", lv:"A", type:"重启", region:"华国", loc:"南方",
+    power:"以钟声为媒介短暂“重启”局部时间，被困者反复经历同一时刻，无法脱出。",
+    warn:"听到相同钟声三次以上，立即以黄金封耳并撤离该区域。",
+    brief:{ scope:"钟声覆盖的街区间", rule:"钟声三次以上即陷入时间循环", weak:"黄金封耳可屏蔽钟声", plan:"进入前佩戴黄金耳塞；听到重复钟声立即后撤并上报" } },
+  { name:"鬼婴", lv:"B", type:"鬼奴", region:"华国", loc:"南方",
+    power:"以“孩童啼哭”诱骗成年人靠近，群体出现时可形成小型鬼域。",
+    warn:"深夜听见孩童啼哭而周边无住户，立即以黄金封门并上报。",
+    brief:{ scope:"啼哭声覆盖的居民区", rule:"应答啼哭者被诱捕，群体可成小型鬼域", weak:"黄金封门可阻断", plan:"深夜听见啼哭不回应、不开门，立即上报驻点" } },
+  { name:"鬼画", lv:"S", type:"鬼域", region:"欧洲", loc:"欧洲 · 博物馆",
+    power:"画中为欧式红衣女子，五官模糊。注视者被拖入画中世界，画幅鬼域可吞没城市，曾团灭一支欧洲顶尖驭鬼者队伍。",
+    warn:"切勿直视画作超过数秒；发现欧式红衣人物画立即上报，禁止拍照。",
+    brief:{ scope:"画幅及展出地整片区域", rule:"注视画中女子者被拖入画中，鬼域随画幅吞没城市", weak:"黄金画框可限制蔓延（存疑），无已知稳定解法", plan:"S级响应：封锁展出地，禁止拍照与直视，等待总部黄金隔离帷幕" } },
+  { name:"饿死鬼", lv:"S", type:"鬼域", region:"华国", loc:"大昌市",
+    power:"四个阶段无限成长、无限寄生，成年体鬼域曾笼罩整座城市，数十万人沦为鬼奴。",
+    warn:"感染者会逐步鬼化，注意身边人行为异常；远离一切“过度饥饿”的人。",
+    brief:{ scope:"全城鬼域（成年体）", rule:"寄生—吞噬循环，源头鬼不灭则无限增长", weak:"源头鬼被封印后余众衰退", plan:"优先斩首源头鬼；黄金隔离间收容残片；全城封锁并排查鬼化个体" } },
+  { name:"静悄悄", lv:"S", type:"必死规律", region:"其他", loc:"全球",
+    power:"全书唯一的唯心厉鬼，无法被关押：只要说出“鬼”字，它就会出现在你面前，无视时间与空间，可无限叠加。",
+    warn:"日常用语中避免提及“鬼”字，以代号“静默体”指代。",
+    brief:{ scope:"全球，无时空限制", rule:"说出“鬼”字即现身，可无限叠加", weak:"不提及则不现身（唯心规则），无物理解法", plan:"纪律管控用词；内部文档禁止书面出现“鬼”字；遭遇时保持沉默撤离" } },
+  { name:"鬼梦", lv:"A", type:"必死规律", region:"其他", loc:"梦境",
+    power:"意识型厉鬼，专攻梦境猎杀，物理攻击完全无效；梦境中死亡，现实同步死亡。",
+    warn:"连续多日噩梦需警惕，勿在梦中应答任何呼唤。",
+    brief:{ scope:"入睡者的梦境", rule:"梦境中死亡则现实同步死亡", weak:"物理攻击无效；唤醒干预可打断（存疑）", plan:"对受害者轮班唤醒；佩戴黄金枕饰；重症者由驭鬼者入梦干预" } }
+];
+
+/* ===== 数据：驭鬼者档案 ===== */
+const RIDERS = [
+  { code:"鬼眼", name:"杨间", city:"华国 · 大昌市", ghost:"鬼眼（主驾驭）· 鬼影", layers:"十层", org:"总部 · 大昌市负责人", secret:"绝密",
+    note:"档案摘要：驾驭多只厉鬼，鬼域层数冠绝当代，曾独立平定多起S级事件。档案调阅需双人授权并全程留痕。" },
+  { code:"鬼火", name:"李军", city:"总部 · 华国", ghost:"鬼火", layers:"三层", org:"总部 · 直属队长", secret:"机密",
+    note:"总部资深队长，多次担任A级以上事件现场总指挥，擅长以鬼火封锁鬼域出口。作风稳健，历年任务记录优良。" },
+  { code:"叶真", name:"叶真", city:"华国 · 灵异论坛总部", ghost:"不详（权限不足）", layers:"不详", org:"灵异论坛 · 首领", secret:"绝密",
+    note:"灵异论坛最高领袖，真实战力与所驾驭厉鬼均为最高机密。对外活动记录极少，档案调阅需总部与论坛双边授权。" },
+  { code:"鬼影（关联档案）", name:"不详", city:"华国 · 大昌市", ghost:"鬼影", layers:"不详", org:"独立", secret:"绝密",
+    note:"档案残缺，多页被涂黑。涉及“七层鬼域事件”核心，调阅需S级权限并登记追责。建议与“鬼眼”档案交叉比对。" },
+  { code:"白", name:"白", city:"总部", ghost:"不详", layers:"不详", org:"朋友圈 · 高层", secret:"机密",
+    note:"朋友圈高层成员，行动轨迹不对外公开，名下多数档案加密。与总部保持“有限合作”关系，身份敏感。" },
+  { code:"青", name:"不详", city:"华国 · 沿海某市", ghost:"鬼湖", layers:"五层", org:"独立", secret:"机密",
+    note:"长期驻守西部高原湖区，曾三次单枪匹马压制“鬼湖”异动。拒绝总部编制，仅接受等价黄金报酬。" }
+];
+
+/* ===== 数据：知识百科条目 ===== */
+const KNOWLEDGE = [
+  { title:"鬼无法被杀死", tag:"核心规则",
+    body:"任何物理攻击、热武器甚至核武都无法消灭厉鬼。被摧毁的鬼只会以另一种形式复苏，封印与限制是唯一可行的手段。" +
+         "<br><span class='k-key'>唯有用鬼的力量才能对付鬼</span>，驭鬼者本质上是以鬼制鬼——这也是所有驭鬼者存在的意义与代价。" },
+  { title:"黄金免疫", tag:"核心规则",
+    body:"黄金是已知唯一不受鬼力量影响的物质。黄金可以隔绝灵异感知，使鬼“看不见”外界、触碰不到内部。" +
+         "<br>关押厉鬼必须使用黄金容器：黄金棺材、黄金密室、黄金隔离间。总部所有S级收容间内壁均为黄金铸成，" +
+         "<span class='k-rule'>黄金在驭鬼者体系中的地位，高于一切武器与科技。</span>" },
+  { title:"鬼域规则", tag:"核心规则",
+    body:"只有鬼域能对抗鬼域。鬼域存在层数划分：一层鬼域可规避普通人感知，让人“看不见”异常；" +
+         "三层鬼域内真实世界尽数消失，只余黄金与鬼；层数越深，规则越接近厉鬼本身，也越不可逆。" +
+         "<br><span class='k-key'>鬼域层数</span>是衡量驭鬼者强度的重要指标，也是档案中必填字段。" },
+  { title:"复苏机制", tag:"驭鬼者代价",
+    body:"使用鬼的力量会加速自身厉鬼的复苏。复苏进度不可见、不可测，只能在每一次使用力量后默默累积。" +
+         "<br><span class='k-key'>复苏完成之日即是驭鬼者死亡之时</span>——届时他将完全化为厉鬼。药物与“压制”只能延缓，无法逆转。" },
+  { title:"拼图理论", tag:"前沿假说",
+    body:"大多数鬼并非完整存在，只是“拼图”的一部分。当碎片被拼齐，厉鬼的恐怖程度呈指数级上升。" +
+         "<br>总部对厉鬼碎片的收容与拆分是最高优先级任务——<span class='k-rule'>任何两件“同类”灵异物品禁止同室存放</span>，防止意外拼合。" }
+];
+
+/* ===== 数据：顶级厉鬼档案（十二）· 考据整理 =====
+   说明：以下名单为读者盘点整理，非小说原文的单一名单；分级为民间盘点口径，无官方定论。 */
+const TOP_GHOSTS = [
+  { t:"鬼画", lv:"S", d:"画中为欧式红衣女子，五官模糊。最初源于国内，辗转于欧洲一座博物馆爆发，曾团灭一支欧洲顶尖驭鬼者队伍；画幅鬼域可吞没整座城市，总部曾判定其对亚洲构成巨大威胁。" },
+  { t:"饿死鬼", lv:"S", d:"大昌市事件源头：驭鬼者周正被敲门鬼影响，体内厉鬼复苏后不断吞噬成长。具备四个阶段，无限成长、无限寄生，成年体鬼域曾笼罩整座大昌市，数十万人沦为鬼奴。" },
+  { t:"鬼差", lv:"S", d:"三大无解S级厉鬼之一，黑棺形态，于棺中无限重启，曾差点团灭整座基地。" },
+  { t:"静悄悄", lv:"S", d:"全书唯一的唯心厉鬼，无法被关押。规则极简：只要说出“鬼”字，它就会出现在你面前，无视时间与空间，且可无限叠加。" },
+  { t:"鬼梦", lv:"S", d:"意识型厉鬼，专攻梦境猎杀，物理攻击完全无效。一旦在梦境中陨落，现实便会同步死亡。后期被杨间驾驭，成为关键拼图。" },
+  { t:"鬼眼", lv:"A", d:"杨间核心驾驭的厉鬼，鬼域可层层叠加至十层：从制造幻觉、影响现实，到停止时空、重启自身、范围重启，乃至显现时间长河。" },
+  { t:"鬼影", lv:"S", d:"必死规律：被影子覆盖者死亡。鬼域内一切阴影皆为鬼影之身，无死角，需持续光源压制。" },
+  { t:"鬼邮局", lv:"S", d:"以废弃邮局为媒介的鬼域，信件可跨越鬼域投递。盖有黑色邮戳的信件签收即死，收件人无法拒绝。" },
+  { t:"鬼湖", lv:"S", d:"湖泊本体即鬼域入口，涉水者迷失于无水之湖，尸体浮于千里之外。GPS与罗盘在湖区全部失灵。" },
+  { t:"敲门鬼", lv:"A", d:"七中事件核心，鬼域范围覆盖整栋楼，规律是敲门必死——应门者死亡。新人驭鬼者遭遇的第一个高规格灵异事件。" },
+  { t:"鬼新娘", lv:"A", d:"触发条件为婚礼：收到无落款婚礼请柬者被选中，将举行一场无人参加的婚礼，随后消失。" },
+  { t:"遗忘鬼", lv:"S", d:"总部十二位队长之一李乐平驾驭的核心鬼，能力是让所有人永远记不住他，无时空限制；甚至可强行遗忘自身伤势乃至死亡，达到类似重启的效果。" }
+];
+
+/* ===== 数据：鬼域档案（七大鬼域 + 层数铁律）· 考据整理 =====
+   说明：以下鬼域按读者整理列示，载体与特性散见原著各卷，非小说原文的单一“七大”名单。 */
+const GHOST_DOMAINS = [
+  { t:"鬼邮局鬼域", lv:"", d:"载体：大昌市废弃邮局。特性：信件可跨越鬼域投递至任何收件人手中，签收不可拒绝，是总部重点研究的“通道型”鬼域。" },
+  { t:"鬼画鬼域", lv:"S", d:"载体：红衣女子油画。特性：注视画中女子者被拖入画中世界，鬼域可随画幅蔓延并吞没城市，曾在欧洲团灭顶尖驭鬼者队伍。" },
+  { t:"黑色棺材鬼域", lv:"S", d:"载体：黑棺（鬼差）。特性：棺中无限重启，鬼域层层叠套，关押与释放规则不明，曾险些团灭基地。" },
+  { t:"红光鬼域", lv:"A", d:"载体：鬼眼（杨间）。特性：层数可至十层——幻觉、挪移、影响现实、停止时空、重启自身、范围重启、显现时间长河。" },
+  { t:"金色鬼域", lv:"", d:"载体：炉火 / 黄金衍生。特性：与黄金相关的特殊鬼域形态，可隔绝灵异感知，属最高安全等级标识。" },
+  { t:"云雾鬼域（黑色雨伞）", lv:"S", d:"载体：黑色雨伞。特性：伞形鬼域共六层，每层关押无数厉鬼与鬼奴，层数越深关押越强；杀人规律为接触雨水或长时间吸入水汽。" },
+  { t:"失控酒店鬼域", lv:"", d:"载体：失控酒店（凯撒大酒店）。特性：空间错乱、时间扭曲，曾作为陷阱围杀驭鬼者，属“不可控环境型”鬼域。" },
+  { t:"鬼域层数铁律（1—10层）", lv:"", d:"一层：制造幻觉、域内挪移、隔绝外界探查；三层：真实世界尽数消失，只余黄金与鬼；五层：影响现实，可将较弱厉鬼关押进深层空间；六层：停止时空；七层：重启自身；八层：范围重启时间；九至十层：显现时间长河，将灵异力量叠加到极致。" }
+];
+
+/* ===== 全局状态 ===== */
+const state = { rider: null, attempts: 0 };
+
+/* ===== 绝密通道：暗号哈希表（FNV-1a 简单混淆） =====
+   源码中只存哈希、不存明文暗号；运行时对输入做同样的哈希后比对。 */
+const SECRET_HASHES = new Set(['b2cc5199', '1f1ac345', 'b891c998']);
+function unlockHash(s){
+  let h = 0x811c9dc5; /* FNV 偏移基数 */
+  for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16);
+}
+
+/* ===== 工具函数 ===== */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const fmt = n => '$' + n.toLocaleString('en-US');
+
+/* Toast 日志通知 */
+function toast(msg, kind){
+  const t = document.createElement('div');
+  t.className = 'toast-item' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  $('#toast').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2600);
+}
+
+/* 信号干扰闪烁 + 页面抖动（搜索时触发） */
+function glitch(){
+  const g = $('#glitch');
+  g.classList.remove('on'); void g.offsetWidth; /* 重置动画 */
+  g.classList.add('on');
+  const m = $('#main-app');
+  m.classList.remove('shake'); void m.offsetWidth;
+  m.classList.add('shake');
+  setTimeout(() => { g.classList.remove('on'); m.classList.remove('shake'); }, 900);
+}
+
+/* ===== 音效系统（Web Audio 合成，无外部音频文件） =====
+   浏览器要求首次交互后才能发声：所有音效均在用户点击后触发。 */
+let audioCtx = null;
+let soundOn = true;
+try{ soundOn = localStorage.getItem('gri-sound') !== 'off'; }catch(e){}
+function ensureAudio(){
+  if(!audioCtx){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) audioCtx = new AC();
+    }catch(e){ audioCtx = null; }
+  }
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+/* 低频蜂鸣：按钮点击时（72Hz 正弦短音，终端应答感） */
+function playHum(){
+  if(!soundOn) return; ensureAudio(); if(!audioCtx) return;
+  try{
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(72, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.10, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.22);
+  }catch(e){}
+}
+/* 干扰沙沙声：检索时（带通滤波白噪声，模拟信号干扰） */
+function playStatic(){
+  if(!soundOn) return; ensureAudio(); if(!audioCtx) return;
+  try{
+    const dur = 0.55, sr = audioCtx.sampleRate;
+    const buf = audioCtx.createBuffer(1, Math.floor(sr * dur), sr);
+    const d = buf.getChannelData(0);
+    for(let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.7;
+    const g = audioCtx.createGain(); g.gain.value = 0.09;
+    src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    src.start();
+  }catch(e){}
+}
+/* 打字机哒哒声：登录日志逐行输出时（高频短促噪声脉冲） */
+function playType(){
+  if(!soundOn) return; ensureAudio(); if(!audioCtx) return;
+  try{
+    const dur = 0.045, sr = audioCtx.sampleRate;
+    const buf = audioCtx.createBuffer(1, Math.floor(sr * dur), sr);
+    const d = buf.getChannelData(0);
+    for(let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const f = audioCtx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 900;
+    const g = audioCtx.createGain(); g.gain.value = 0.10;
+    src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    src.start();
+  }catch(e){}
+}
+
+/* ===== 渲染：顶部滚动信息流（内容复制两份实现无缝循环） ===== */
+function renderTicker(){
+  const msgs = [
+    { t:"【红色警报】", c:"大昌市“鬼邮局”出现第二次异常投递", alarm:true },
+    { t:"【悬赏更新】", c:"米国加州稻草人庄园悬赏上调至 5000 万美元", alarm:false },
+    { t:"【任务派遣】", c:"伦敦雾区 A级小队已抵达，黄金隔离帷幕架设完成", alarm:false },
+    { t:"【信号异常】", c:"西伯利亚冻土区检测到高强度灵异波动，驻军后撤", alarm:true },
+    { t:"【物资通报】", c:"黄金库存 14/16 · 隔离间 8/12 · 补给充足", alarm:false },
+    { t:"【内部通报】", c:"“鬼影”档案交叉比对进行中，S级权限可调阅", alarm:false }
+  ];
+  const frag = msgs.map(m => '<span' + (m.alarm ? ' class="alarm">' : '>') + m.t + '<b>' + m.c + '</b></span>').join('');
+  /* 两个等宽半段 → translateX(-50%) 精确无缝循环 */
+  $('#ticker-stream').innerHTML = '<div class="ts-half">' + frag + '</div><div class="ts-half">' + frag + '</div>';
+}
+
+/* ===== 渲染：事件卡片 ===== */
+function renderEvents(list){
+  $('#events-grid').innerHTML = list.map(e => `
+    <article class="event-card" data-id="${e.id}">
+      <div class="ev-top">
+        <span class="lv-tag lv-${e.lv.toLowerCase()}">${e.lv}级</span>
+        <h3 class="ev-name">${e.name}</h3>
+        <span class="ev-exp"></span>
+      </div>
+      <div class="ev-meta">
+        <span>地点：${e.loc}</span>
+        <span class="ev-bounty">悬赏：${fmt(e.amt)}</span>
+        <span>参与：${e.ppl}人</span>
+      </div>
+      <div class="ev-detail">
+        <p>${e.desc}</p>
+        <p class="ev-log">—— 档案更新：${e.time} · 状态：${e.status} · 受理：${e.org}</p>
+      </div>
+    </article>`).join('');
+  /* 点击卡片 → 展开 / 收起详情（模拟），附带低频蜂鸣 */
+  $$('.event-card').forEach(c => c.addEventListener('click', () => {
+    const open = c.classList.toggle('open');
+    const name = c.querySelector('.ev-name').textContent;
+    playHum();
+    toast(open ? '> 已展开事件详情：' + name + '（本次调阅已留痕）' : '> 已收起事件详情', open ? 'gold' : 'log');
+  }));
+}
+
+/* ===== 渲染：厉鬼检索结果（含可展开的任务简报） ===== */
+function renderGhosts(list){
+  if(!list.length){
+    $('#ghost-results').innerHTML = '<div class="events-empty">未检索到匹配条目 · 请尝试其他关键词或筛选条件</div>';
+    return;
+  }
+  $('#ghost-results').innerHTML = list.map(g => `
+    <div class="ghost-row">
+      <div class="g-top">
+        <span class="lv-tag lv-${g.lv.toLowerCase()}">${g.lv}级</span>
+        <b>${g.name}</b><span class="g-type">[${g.type}]</span><span class="g-region">${g.loc} · ${g.region}</span>
+        <span class="g-exp" style="margin-left:auto"></span>
+      </div>
+      <p class="g-power">已知能力：${g.power}</p>
+      <p class="g-warn">${g.warn}</p>
+      <!-- 任务简报：点击条目展开 -->
+      <div class="g-brief">
+        <div class="bf-row"><span class="bf-k">鬼域范围</span><span class="bf-v">${g.brief.scope}</span></div>
+        <div class="bf-row"><span class="bf-k">杀人规律</span><span class="bf-v red">${g.brief.rule}</span></div>
+        <div class="bf-row"><span class="bf-k">已知弱点</span><span class="bf-v">${g.brief.weak}</span></div>
+        <div class="bf-row"><span class="bf-k">处置方案</span><span class="bf-v">${g.brief.plan}</span></div>
+      </div>
+    </div>`).join('');
+  /* 点击条目 → 展开 / 收起任务简报 */
+  $$('.ghost-row').forEach(r => r.addEventListener('click', () => { r.classList.toggle('open'); playHum(); }));
+}
+
+/* 厉鬼检索：关键词 + 等级 / 类型 / 地区 筛选 */
+function doGhostSearch(){
+  const kw = $('#g-kw').value.trim();
+  const lv = $('#g-lv').value, tp = $('#g-type').value, rg = $('#g-region').value;
+  const list = GHOSTS.filter(g =>
+    (!lv || g.lv === lv) &&
+    (!tp || g.type === tp) &&
+    (!rg || g.region === rg) &&
+    (!kw || g.name.includes(kw) || g.power.includes(kw) || g.loc.includes(kw) || g.type.includes(kw))
+  );
+  /* 彩蛋：检索“杨间”或“鬼眼” → 显示特殊记录 */
+  const egg = kw.includes('杨间') || kw.includes('鬼眼');
+  $('#ghost-egg').classList.toggle('hidden', !egg);
+  renderGhosts(list);
+  $('#ghost-count').innerHTML = '检索结果：命中 <b>' + list.length + '</b> 条 · 本次查询已计入审计日志';
+  playStatic(); playHum();  /* 检索：沙沙干扰声 + 蜂鸣 */
+  glitch();
+  toast('> 厉鬼检索完成，命中 ' + list.length + ' 条。', 'log');
+}
+
+/* ===== 渲染：驭鬼者档案 ===== */
+function renderRiders(list){
+  $('#rider-grid').innerHTML = list.map(r => `
+    <article class="rider-card">
+      <div class="r-top">
+        <b class="r-code">${r.code}</b>
+        <span class="secret-tag ${r.secret === '绝密' ? 'st-top' : (r.secret === '机密' ? 'st-sec' : 'st-low')}">保密级别：${r.secret}</span>
+      </div>
+      <dl>
+        <div><dt>真名</dt><dd>${r.name}</dd></div>
+        <div><dt>负责城市</dt><dd>${r.city}</dd></div>
+        <div><dt>驾驭厉鬼</dt><dd>${r.ghost}</dd></div>
+        <div><dt>鬼域层数</dt><dd>${r.layers}</dd></div>
+        <div><dt>所属势力</dt><dd>${r.org}</dd></div>
+      </dl>
+      <p class="r-note">${r.note}</p>
+    </article>`).join('');
+}
+
+/* 驭鬼者检索：按代号 / 真名 / 城市 / 势力 */
+function doRiderSearch(){
+  const kw = $('#r-kw').value.trim();
+  const list = kw
+    ? RIDERS.filter(r => r.code.includes(kw) || r.name.includes(kw) || r.city.includes(kw) || r.org.includes(kw))
+    : RIDERS;
+  /* 彩蛋：检索“杨间”或“鬼眼” → 显示特殊记录 */
+  const egg = kw.includes('杨间') || kw.includes('鬼眼');
+  $('#rider-egg').classList.toggle('hidden', !egg);
+  renderRiders(list);
+  $('#rider-count').innerHTML = '检索结果：命中 <b>' + list.length + '</b> 条 · 本模块调阅需保密授权';
+  playStatic(); playHum();  /* 检索：沙沙干扰声 + 蜂鸣 */
+  glitch();
+  toast('> 档案检索完成，命中 ' + list.length + ' 条。', 'log');
+}
+
+/* ===== 渲染：知识百科（可折叠卡片 + 考据向档案卡） ===== */
+/* 档案卡生成器：外层可折叠，内部为可再展开的子资料卡 */
+function archiveCard(title, tag, items){
+  return `
+    <div class="k-card">
+      <div class="k-head">
+        <span class="k-mk"></span>
+        <span class="k-title">${title}</span>
+        <span class="k-tag">${tag}</span>
+      </div>
+      <div class="k-body">
+        <p class="k-rule">档案说明：以下内容为读者考据整理，非小说原文的单一名单；分级与排名为民间盘点口径，无官方定论，仅供爱好者参考。</p>
+        <div class="sub-wrap">
+          ${items.map(it => `
+            <div class="sub-card">
+              <div class="sub-head">
+                <span class="sub-mk"></span>
+                <span class="sub-title">${it.t}</span>
+                ${it.lv ? '<span class="lv-tag lv-' + it.lv.toLowerCase() + '">' + it.lv + '级</span>' : ''}
+              </div>
+              <div class="sub-body"><p>${it.d}</p></div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderKnowledge(){
+  let html = KNOWLEDGE.map((k, i) => `
+    <div class="k-card" data-i="${i}">
+      <div class="k-head">
+        <span class="k-mk"></span>
+        <span class="k-title">${k.title}</span>
+        <span class="k-tag">${k.tag}</span>
+      </div>
+      <div class="k-body"><p>${k.body}</p></div>
+    </div>`).join('');
+  /* 追加考据向档案：十二个顶级厉鬼 / 七大鬼域与层数铁律 */
+  html += archiveCard('顶级厉鬼档案（十二）· 考据整理', '考据向', TOP_GHOSTS);
+  html += archiveCard('鬼域档案（七大鬼域 · 层数铁律）· 考据整理', '考据向', GHOST_DOMAINS);
+  $('#knowledge-list').innerHTML = html;
+  /* 点击标题 → 展开 / 折叠 */
+  $$('.k-head').forEach(h => h.addEventListener('click', () => {
+    h.parentElement.classList.toggle('open');
+    playHum();
+  }));
+}
+
+/* ===== 渲染：悬赏榜（按金额从高到低排序） ===== */
+function renderBounty(){
+  const sorted = [...EVENTS].sort((a, b) => b.amt - a.amt); /* 现算排序，保证口径 */
+  $('#bounty-list').innerHTML = sorted.map((e, i) => `
+    <div class="b-row">
+      <span class="b-rank ${i < 3 ? 'top3' : ''}">${String(i + 1).padStart(2, '0')}</span>
+      <span class="lv-tag lv-${e.lv.toLowerCase()}">${e.lv}级</span>
+      <span class="b-name">${e.name}</span>
+      <span class="b-loc">${e.loc}</span>
+      <span class="b-amt">${fmt(e.amt)}</span>
+      <span class="b-status">未解决</span>
+      <span class="b-org">${e.org}</span>
+    </div>`).join('');
+}
+
+/* ===== 模块路由：hash 切换 Tab ===== */
+function navigate(route){
+  $$('.view').forEach(v => v.classList.remove('active'));
+  const target = $('#view-' + route);
+  if(target) target.classList.add('active');
+  $$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.route === route));
+}
+window.addEventListener('hashchange', () => {
+  const r = (location.hash || '#events').replace('#', '');
+  navigate(r);
+});
+
+/* ===== 登录流程（模拟验证） ===== */
+function startLogin(){
+  playHum();  /* 点击验证：低频蜂鸣 */
+  const id = $('#rider-id').value.trim();
+  if(!id){ toast('> 请输入驭鬼者编号。', 'warn'); return; }
+  /* 绝密通道：比对哈希（无命中则走普通登录） */
+  const isSecret = SECRET_HASHES.has(unlockHash(id));
+
+  state.attempts++;
+  const btn = $('#login-btn'), input = $('#rider-id'), log = $('#verify-log');
+  btn.disabled = true; input.disabled = true;
+  log.innerHTML = '';
+  $('#verify-bar').style.width = '';   /* 清除可能残留的 inline 宽度，避免覆盖 .on 的过渡 */
+  $('#verify-bar').classList.remove('on'); void $('#verify-bar').offsetWidth;
+  $('#verify-bar').classList.add('on');
+
+  /* 逐行输出验证过程 */
+  const lines = [
+    '> 正在校验编号 [' + id + '] ...',
+    '> 编号格式校验：通过',
+    state.attempts > 1 ? '> 警告：本会话已连续尝试 ' + state.attempts + ' 次' : '> 通道：首次接入',
+    '> 正在建立加密通道 ......',
+    '> 加密通道建立成功 [AES-512 · 量子混淆]',
+    '> 正在连接总部数据库 ...',
+    '> 权限核验：机密级 · LEVEL-3',
+    isSecret ? '> 检测到绝密授权通道 …… 鬼眼权限已激活' : '> 验证通过。欢迎，驭鬼者「' + id + '」',
+    '> 资料库加载中，请稍候'
+  ];
+  lines.forEach((ln, i) => {
+    setTimeout(() => {
+      const d = document.createElement('div');
+      d.className = 'vline' + (ln.includes('警告') ? ' err' : '');
+      d.textContent = ln;
+      log.appendChild(d);
+      playType();  /* 打字机哒哒声：每输出一行响一次 */
+      /* 最后一行完成后：进入主界面 */
+      if(i === lines.length - 1){
+        setTimeout(() => {
+          state.rider = id;
+          const chip = $('#chip-id');
+          chip.textContent = isSecret ? '鬼眼 · 绝密' : id;
+          chip.classList.toggle('gold', isSecret);
+          document.body.classList.toggle('secret', isSecret); /* 激活金色边框 */
+          $('#login-screen').classList.add('done');
+          setTimeout(() => {
+            $('#login-screen').classList.add('hidden');
+            $('#main-app').classList.remove('hidden');
+            if(!location.hash) location.hash = '#events';
+            navigate((location.hash || '#events').replace('#', ''));
+            toast(isSecret ? '> 绝密通道已激活：鬼眼权限。十层鬼域档案已同步。' : '> 欢迎，驭鬼者「' + id + '」。本次访问已记录并归档。', 'gold');
+            renderTicker(); renderEvents(EVENTS); renderKnowledge(); renderBounty();
+            /* 直接渲染全量列表（登录进入不触发搜索干扰动画） */
+            $('#ghost-egg').classList.add('hidden');
+            $('#rider-egg').classList.add('hidden');
+            renderGhosts(GHOSTS);
+            $('#ghost-count').innerHTML = '检索结果：命中 <b>' + GHOSTS.length + '</b> 条 · 本次查询已计入审计日志';
+            renderRiders(RIDERS);
+            $('#rider-count').innerHTML = '检索结果：命中 <b>' + RIDERS.length + '</b> 条 · 本模块调阅需保密授权';
+          }, 600);
+        }, 900);
+      }
+    }, 380 + i * 420);
+  });
+}
+
+/* ===== 退出系统 ===== */
+function logout(){
+  playHum();
+  state.rider = null;
+  document.body.classList.remove('secret');          /* 退出：关闭金色边框 */
+  $('#chip-id').classList.remove('gold');
+  $('#main-app').classList.add('hidden');
+  $('#login-screen').classList.remove('hidden', 'done');
+  $('#verify-log').innerHTML = '';
+  $('#verify-bar').classList.remove('on');
+  $('#verify-bar').style.width = '';
+  $('#rider-id').value = '';
+  $('#login-btn').disabled = false; $('#rider-id').disabled = false;
+  location.hash = '#events';
+  toast('> 会话已注销。全部访问记录已归档，可追溯。', 'warn');
+}
+
+/* ===== 灵异信号强度：CSS 动画 + JS 数值波动 ===== */
+setInterval(() => {
+  const v = 90 + Math.floor(Math.random() * 10); /* 90 ~ 99 波动 */
+  $('#signal-val').textContent = v + '%';
+}, 2600);
+
+/* ===== 顶部时钟 ===== */
+function tickClock(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  $('#clock').textContent = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+setInterval(tickClock, 1000);
+
+/* ===== 事件绑定 ===== */
+$('#login-form').addEventListener('submit', e => { e.preventDefault(); startLogin(); });
+$('#logout-btn').addEventListener('click', logout);
+$('#g-search').addEventListener('click', doGhostSearch);
+$('#g-kw').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); doGhostSearch(); } });
+$('#r-search').addEventListener('click', doRiderSearch);
+$('#r-kw').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); doRiderSearch(); } });
+/* 导航 / 侧边栏点击：低频蜂鸣 */
+$$('.nav a').forEach(a => a.addEventListener('click', playHum));
+$$('.side-list li').forEach(li => li.addEventListener('click', () => {
+  playHum();
+  toast('> 已接收任务单：' + li.childNodes[0].textContent.trim() + '（模拟受理）', 'gold');
+}));
+/* 音效开关（状态存入 localStorage） */
+const soundBtn = $('#sound-btn');
+function syncSoundBtn(){
+  if(!soundBtn) return;
+  soundBtn.textContent = soundOn ? '[ 音效：开 ]' : '[ 音效：关 ]';
+  soundBtn.classList.toggle('on', soundOn);
+}
+soundBtn.addEventListener('click', () => {
+  soundOn = !soundOn;
+  try{ localStorage.setItem('gri-sound', soundOn ? 'on' : 'off'); }catch(e){}
+  syncSoundBtn();
+  toast(soundOn ? '> 音效已开启' : '> 音效已关闭', 'log');
+  if(soundOn) playHum();
+});
+syncSoundBtn();
+/* 知识百科子资料卡展开/折叠（事件委托，仅绑定一次） */
+$('#knowledge-list').addEventListener('click', e => {
+  const sh = e.target.closest('.sub-head');
+  if(sh){ sh.parentElement.classList.toggle('open'); playHum(); }
+});
+
+/* 初始：先渲染好事件 / 知识 / 悬赏，登录后立即可用 */
+renderTicker(); renderEvents(EVENTS); renderKnowledge(); renderBounty();
+tickClock();
+</script>
+</body>
+</html>
